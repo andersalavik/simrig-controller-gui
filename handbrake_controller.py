@@ -196,11 +196,17 @@ class HandbrakeController(wx.Frame):
                     # Create new plot
                     line_raw = PolyLine(self.data_raw, colour='red', width=1)
                     line_processed = PolyLine(self.data_processed, colour='blue', width=1)
-                    gc = PlotGraphics([line_raw, line_processed], 'Handbrake Values', 'Time', 'Value')
+                    
+                    # Plot curve
+                    self.plotCurve()
+                    line_curve = PolyLine(self.curve_data, colour='green', width=1)
+                    
+                    gc = PlotGraphics([line_raw, line_processed, line_curve], 'Handbrake Values', 'Time', 'Value')
                     # Update plot on the GUI
                     wx.CallAfter(self.plotCanvas.Draw, gc)
 
                     counter += 1  # Increment counter
+
 
 
 if __name__ == "__main__":
