@@ -20,10 +20,17 @@ class HandbrakeController(wx.Frame):
         self.curveTypeChoices = ['LINEAR', 'EXPONENTIAL', 'LOGARITHMIC']
         self.curveType = wx.Choice(self, choices=self.curveTypeChoices)
 
-        self.minHandbrake = wx.Slider(self, value=-5200, minValue=-5000, maxValue=900000, style=wx.SL_HORIZONTAL)
-        self.maxHandbrake = wx.Slider(self, value=50000, minValue=-5000, maxValue=900000, style=wx.SL_HORIZONTAL)
-        self.curveFactor = wx.Slider(self, value=2, minValue=0, maxValue=10, style=wx.SL_HORIZONTAL)
+        # Create the slider and the text
+        self.minHandbrake = wx.Slider(self, value=-5200, minValue=-10000, maxValue=900000, style=wx.SL_HORIZONTAL)
+        self.minHandbrakeValueText = wx.StaticText(self, label=str(self.minHandbrake.GetValue()))
 
+        
+        self.maxHandbrake = wx.Slider(self, value=50000, minValue=-10000, maxValue=900000, style=wx.SL_HORIZONTAL)
+        self.maxHandbrakeValueText = wx.StaticText(self, label=str(self.maxHandbrake.GetValue()))
+        
+        self.curveFactor = wx.Slider(self, value=2, minValue=0, maxValue=10, style=wx.SL_HORIZONTAL)
+        self.curveFactorValueText = wx.StaticText(self, label=str(self.curveFactor.GetValue()))
+        
         self.saveButton = wx.Button(self, label="Save Settings")
         self.setupModeToggle = wx.CheckBox(self, label="Toggle Setup Mode")
 
@@ -50,16 +57,20 @@ class HandbrakeController(wx.Frame):
         hbox2 = wx.BoxSizer(wx.HORIZONTAL)
         hbox2.Add(wx.StaticText(self, label="Min Handbrake: "), flag=wx.RIGHT, border=8)
         hbox2.Add(self.minHandbrake, proportion=1)
+        hbox2.Add(self.minHandbrakeValueText)
+        
         vbox.Add(hbox2, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         hbox3 = wx.BoxSizer(wx.HORIZONTAL)
         hbox3.Add(wx.StaticText(self, label="Max Handbrake: "), flag=wx.RIGHT, border=8)
         hbox3.Add(self.maxHandbrake, proportion=1)
+        hbox3.Add(self.maxHandbrakeValueText)
         vbox.Add(hbox3, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         hbox4 = wx.BoxSizer(wx.HORIZONTAL)
         hbox4.Add(wx.StaticText(self, label="Curve Factor: "), flag=wx.RIGHT, border=8)
         hbox4.Add(self.curveFactor, proportion=1)
+        hbox4.Add(self.curveFactorValueText)
         vbox.Add(hbox4, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         vbox.Add(self.saveButton, flag=wx.EXPAND|wx.ALL, border=10)
@@ -110,14 +121,17 @@ class HandbrakeController(wx.Frame):
 
     def onMinHandbrakeChange(self, event):
         minHandbrake = self.minHandbrake.GetValue()
+        self.minHandbrakeValueText.SetLabel(str(minHandbrake))
         self.ser.write(bytes('m' + str(minHandbrake), 'utf-8'))
 
     def onMaxHandbrakeChange(self, event):
         maxHandbrake = self.maxHandbrake.GetValue()
+        self.maxHandbrakeValueText.SetLabel(str(maxHandbrake))
         self.ser.write(bytes('M' + str(maxHandbrake), 'utf-8'))
 
     def onCurveFactorChange(self, event):
         curveFactor = self.curveFactor.GetValue()
+        self.curveFactorValueText.SetLabel(str(curveFactor))
         self.ser.write(bytes('f' + str(curveFactor), 'utf-8'))
 
     def onSaveButton(self, event):
