@@ -144,6 +144,7 @@ class HandbrakeController(wx.Frame):
         self.ser.write(bytes('r', 'utf-8'))
 
     def updateHandbrakeValues(self):
+        self.data = []  # Initialize data list
         while True:
             if self.ser.is_open:  # Ensure the serial port is open before reading
                 line = self.ser.readline().decode('utf-8').strip()
@@ -155,24 +156,18 @@ class HandbrakeController(wx.Frame):
                     wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
                     wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
 
-                # Here, add conditions to check for each setting and update the corresponding GUI element
-                elif line.startswith("Curve type: "):
-                    curve_type = line[12:]
-                    wx.CallAfter(self.curveType.SetStringSelection, curve_type)
+                    # Add new data point to list
+                    self.data.append((raw, processed))
+                    # Remove oldest data point if list is too long
+                    if len(self.data) > 100:
+                        self.data.pop(0)
 
-                elif line.startswith("Min raw handbrake: "):
-                    min_raw_handbrake = float(line[19:])
-                    wx.CallAfter(self.minHandbrake.SetValue, min_raw_handbrake)
+                    # Create new plot
+                    line = PolyLine(self.data, colour='red', width=1)
+                    gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
+                    # Update plot on the GUI
+                    wx.CallAfter(self.plotCanvas.Draw, gc)
 
-                elif line.startswith("Max raw handbrake: "):
-                    max_raw_handbrake = float(line[19:])
-                    wx.CallAfter(self.maxHandbrake.SetValue, max_raw_handbrake)
-
-                elif line.startswith("Curve factor: "):
-                    curve_factor = float(line[14:])
-                    wx.CallAfter(self.curveFactor.SetValue, curve_factor)
-
-                # Here, you should also add the new data point to your plot and refresh it
 
 if __name__ == "__main__":
     app = wx.App(False)
