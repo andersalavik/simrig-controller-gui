@@ -155,8 +155,8 @@ class HandbrakeController(wx.Frame):
         minHandbrake = self.minHandbrake.GetValue()
         maxHandbrake = self.maxHandbrake.GetValue()
         curveFactor = self.curveFactor.GetValue()
-        rawHandbrakeValue = self.data_raw[-1]
-        processedHandbrakeValue = self.data_processed[-1]
+        rawHandbrakeValue = self.data_raw[:1]
+        processedHandbrakeValue = self.data_processed[:1]
         
 
         x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
