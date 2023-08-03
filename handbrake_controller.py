@@ -6,7 +6,7 @@ import threading
 
 class HandbrakeController(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Handbrake Controller", size=(600,400))
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Handbrake Controller", size=(800,600))
 
         # Serial communication
         self.ser = serial.Serial()
@@ -37,6 +37,9 @@ class HandbrakeController(wx.Frame):
         hbox0 = wx.BoxSizer(wx.HORIZONTAL)
         hbox0.Add(wx.StaticText(self, label="Port: "), flag=wx.RIGHT, border=8)
         hbox0.Add(self.portSelection)
+        self.connectButton = wx.Button(self, label="Connect")
+        hbox0.Add(self.connectButton)
+
         vbox.Add(hbox0, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         hbox1 = wx.BoxSizer(wx.HORIZONTAL)
@@ -69,7 +72,7 @@ class HandbrakeController(wx.Frame):
         self.SetSizer(vbox)
 
         # Event bindings
-        self.portSelection.Bind(wx.EVT_COMBOBOX, self.onPortSelection)
+        self.connectButton.Bind(wx.EVT_BUTTON, self.onConnectButton)
         self.curveType.Bind(wx.EVT_CHOICE, self.onCurveTypeChange)
         self.minHandbrake.Bind(wx.EVT_SLIDER, self.onMinHandbrakeChange)
         self.maxHandbrake.Bind(wx.EVT_SLIDER, self.onMaxHandbrakeChange)
@@ -87,12 +90,18 @@ class HandbrakeController(wx.Frame):
         for port in ports:
             self.portSelection.Append(port.device)
 
-    def onPortSelection(self, event):
-        port = self.portSelection.GetValue()
+    def onConnectButton(self, event):
         if self.ser.is_open:
             self.ser.close()
-        self.ser.port = port
-        self.ser.open()
+            self.connectButton.SetLabel("Connect")
+        else:
+            try:
+                port = self.portSelection.GetValue()
+                self.ser.port = port
+                self.ser.open()
+                self.connectButton.SetLabel("Disconnect")
+            except:
+                wx.MessageBox('Failed to open port.', 'Error', wx.OK | wx.ICON_ERROR)
 
     def onCurveTypeChange(self, event):
         curveType = self.curveTypeChoices.index(self.curveType.GetStringSelection())
@@ -118,16 +127,16 @@ class HandbrakeController(wx.Frame):
 
     def updateHandbrakeValues(self):
         while True:
-            line = self.ser.readline().decode('utf-8').strip()
-            if line.startswith("Raw Handbrake Value: "):
-                raw, processed = line.split("   Processed Handbrake Value: ")
-                raw = float(raw[21:])
-                processed = float(processed)
+            if self.ser.is_open:  # Ensure the serial port is open before reading
+                line = self.ser.readline().decode('utf-8').strip()
+                if line.startswith("Raw Handbrake Value: "):
+                    raw, processed = line.split("   Processed Handbrake Value: ")
+                    raw = float(raw[21:])
+                    processed = float(processed)
 
-                wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
-                wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
-
-                # Here, you should also add the new data point to your plot and refresh it
+                    wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
+                    wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
+                    # Here, you should also add the new data point to your plot and refresh it
 
 if __name__ == "__main__":
     app = wx.App(False)
