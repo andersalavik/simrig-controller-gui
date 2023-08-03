@@ -169,7 +169,7 @@ class HandbrakeController(wx.Frame):
 
         # Create new plot
         line = PolyLine(list(zip(x, y)), colour='red', width=1)
-        point = PolyMarker([(rawHandbrakeValue, processedHandbrakeValue)], colour='blue', marker='dot', size=1) # Add point for current handbrake value
+        point = PolyMarker([(processedHandbrakeValue, rawHandbrakeValue)], colour='blue', marker='dot', size=1) # Add point for current handbrake value
         gc = PlotGraphics([line,point], 'Handbrake Values', 'Raw Value', 'Processed Value')
         # Update plot on the GUI
         wx.CallAfter(self.plotCanvas.Draw, gc)
