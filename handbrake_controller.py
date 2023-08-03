@@ -151,10 +151,10 @@ class HandbrakeController(wx.Frame):
         self.ser.write(bytes('r', 'utf-8'))
         
     def plotCurve(self):
-    curveType = self.curveType.GetStringSelection()
-    minHandbrake = self.minHandbrake.GetValue()
-    maxHandbrake = self.maxHandbrake.GetValue()
-    curveFactor = self.curveFactor.GetValue()
+        curveType = self.curveType.GetStringSelection()
+        minHandbrake = self.minHandbrake.GetValue()
+        maxHandbrake = self.maxHandbrake.GetValue()
+        curveFactor = self.curveFactor.GetValue()
 
     x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
     if curveType == 'LINEAR':
