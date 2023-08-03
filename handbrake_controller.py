@@ -155,24 +155,49 @@ class HandbrakeController(wx.Frame):
         minHandbrake = self.minHandbrake.GetValue()
         maxHandbrake = self.maxHandbrake.GetValue()
         curveFactor = self.curveFactor.GetValue()
-        rawHandbrakeValue = self.data_raw[:1]
-        processedHandbrakeValue = self.data_processed[:1]
-        
+        rawHandbrakeValue = self.data_raw[-1][1] if self.data_raw else None
+        processedHandbrakeValue = self.data_processed[-1][1] if self.data_processed else None
 
+        # Define output range
+        output_min = 0
+        output_max = 100
+
+        # Scale processed data to graph range (0-100)
+        if processedHandbrakeValue is not None:
+            processedHandbrakeValue = ((processedHandbrakeValue - 0) / (1023 - 0)) * (output_max - output_min) + output_min
+
+        if rawHandbrakeValue is not None and processedHandbrakeValue is not None:
+            print(rawHandbrakeValue, processedHandbrakeValue)
+            point = PolyMarker([(rawHandbrakeValue, processedHandbrakeValue)], colour='blue', marker='circle', size=2)
+        else:
+            point = None
+
+        print(point)
         x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
+
+        # Compute curves
         if curveType == 'LINEAR':
-            y = x * curveFactor
+            y = maxHandbrake * x + curveFactor
         elif curveType == 'EXPONENTIAL':
-            y = np.exp(x * curveFactor)
+            y = maxHandbrake * np.power(x, curveFactor) + curveFactor
         elif curveType == 'LOGARITHMIC':
-            y = np.log(x * curveFactor)
+            # Check to avoid log of 0
+            y = np.where(x > 0, maxHandbrake * np.log(x) / np.log(curveFactor) + curveFactor, 0)
+
+        # Scale output values to desired range (output_min - output_max)
+        y = ((y - np.min(y)) / (np.max(y) - np.min(y))) * (output_max - output_min) + output_min
 
         # Create new plot
         line = PolyLine(list(zip(x, y)), colour='red', width=1)
-        point = PolyMarker([(processedHandbrakeValue, rawHandbrakeValue)], colour='blue', marker='dot', size=1) # Add point for current handbrake value
-        gc = PlotGraphics([line,point], 'Handbrake Values', 'Raw Value', 'Processed Value')
+
+        if point is not None:
+            gc = PlotGraphics([line, point], 'Handbrake Values', 'Raw Value', 'Processed Value')
+        else:
+            gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
+
         # Update plot on the GUI
         wx.CallAfter(self.plotCanvas.Draw, gc)
+
 
     def updateHandbrakeValues(self):
         self.data_raw = []  # Initialize data list for raw values
@@ -197,17 +222,10 @@ class HandbrakeController(wx.Frame):
                         self.data_raw.pop(0)
                         self.data_processed.pop(0)
 
-                    # Create new plot
-                    line_raw = PolyLine(self.data_raw, colour='red', width=1)
-                    line_processed = PolyLine(self.data_processed, colour='blue', width=1)
-                    
+                
                     # Plot curve
                     self.plotCurve()
-                    line_curve = PolyLine(self.curve_data, colour='green', width=1)
                     
-                    gc = PlotGraphics([line_raw, line_processed, line_curve], 'Handbrake Values', 'Time', 'Value')
-                    # Update plot on the GUI
-                    wx.CallAfter(self.plotCanvas.Draw, gc)
 
                     counter += 1  # Increment counter
 
