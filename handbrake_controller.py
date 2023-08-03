@@ -156,19 +156,19 @@ class HandbrakeController(wx.Frame):
         maxHandbrake = self.maxHandbrake.GetValue()
         curveFactor = self.curveFactor.GetValue()
 
-    x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
-    if curveType == 'LINEAR':
-        y = x * curveFactor
-    elif curveType == 'EXPONENTIAL':
-        y = np.exp(x * curveFactor)
-    elif curveType == 'LOGARITHMIC':
-        y = np.log(x * curveFactor)
+        x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
+        if curveType == 'LINEAR':
+            y = x * curveFactor
+        elif curveType == 'EXPONENTIAL':
+            y = np.exp(x * curveFactor)
+        elif curveType == 'LOGARITHMIC':
+            y = np.log(x * curveFactor)
 
-    # Create new plot
-    line = PolyLine(list(zip(x, y)), colour='red', width=1)
-    gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
-    # Update plot on the GUI
-    wx.CallAfter(self.plotCanvas.Draw, gc)
+        # Create new plot
+        line = PolyLine(list(zip(x, y)), colour='red', width=1)
+        gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
+        # Update plot on the GUI
+        wx.CallAfter(self.plotCanvas.Draw, gc)
 
     def updateHandbrakeValues(self):
         self.data_raw = []  # Initialize data list for raw values
