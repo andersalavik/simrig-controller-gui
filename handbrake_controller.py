@@ -40,6 +40,7 @@ class HandbrakeController(wx.Frame):
 
         self.saveButton = wx.Button(self, label="Save Settings")
         self.setupModeToggle = wx.CheckBox(self, label="Toggle Setup Mode")
+        self.setupModeToggle.Hide()
 
         self.plotCanvas = PlotCanvas(self)
         self.rawHandbrakeValue = wx.StaticText(self, label="Raw Handbrake Value: ")
@@ -55,6 +56,7 @@ class HandbrakeController(wx.Frame):
         hbox0.Add(self.connectButton)
         self.configButton = wx.Button(self, label="Config")
         hbox0.Add(self.configButton)
+        self.configButton.Hide()
 
         vbox.Add(hbox0, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
@@ -120,6 +122,9 @@ class HandbrakeController(wx.Frame):
 
     def onConnectButton(self, event):
         if self.ser.is_open:
+            self.ser.write(bytes('w', 'utf-8'))
+            self.setupModeToggle.SetValue(False)
+            time.sleep(1)
             self.ser.close()
             self.connectButton.SetLabel("Connect")
         else:
@@ -129,6 +134,8 @@ class HandbrakeController(wx.Frame):
                 
                 self.ser.open()
                 self.readSettings()
+                self.setupModeToggle.SetValue(True)
+                self.ser.write(bytes('e', 'utf-8'))
                 self.connectButton.SetLabel("Disconnect")
             except:
                 wx.MessageBox('Failed to open port.', 'Error', wx.OK | wx.ICON_ERROR)
@@ -168,7 +175,10 @@ class HandbrakeController(wx.Frame):
         self.ser.write(bytes('s', 'utf-8'))
 
     def onSetupModeToggle(self, event):
-        self.ser.write(bytes('e', 'utf-8'))
+        if self.setupModeToggle.Value == True:
+            self.ser.write(bytes('e', 'utf-8'))
+        else:
+            self.ser.write(bytes('w', 'utf-8'))
         
     def readSettings(self):
         self.ser.write(bytes('r', 'utf-8'))
@@ -253,6 +263,7 @@ class HandbrakeController(wx.Frame):
 
         # Update plot on the GUI
         wx.CallAfter(self.plotCanvas.Draw, gc)
+
 
 
     def updateHandbrakeValues(self):
