@@ -99,6 +99,7 @@ class HandbrakeController(wx.Frame):
                 port = self.portSelection.GetValue()
                 self.ser.port = port
                 self.ser.open()
+                self.readSettings()
                 self.connectButton.SetLabel("Disconnect")
             except:
                 wx.MessageBox('Failed to open port.', 'Error', wx.OK | wx.ICON_ERROR)
@@ -124,6 +125,9 @@ class HandbrakeController(wx.Frame):
 
     def onSetupModeToggle(self, event):
         self.ser.write(bytes('e', 'utf-8'))
+        
+    def readSettings(self):
+        self.ser.write(bytes('r', 'utf-8'))
 
     def updateHandbrakeValues(self):
         while True:
@@ -136,7 +140,25 @@ class HandbrakeController(wx.Frame):
 
                     wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
                     wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
-                    # Here, you should also add the new data point to your plot and refresh it
+
+                # Here, add conditions to check for each setting and update the corresponding GUI element
+                elif line.startswith("Curve type: "):
+                    curve_type = line[12:]
+                    wx.CallAfter(self.curveType.SetStringSelection, curve_type)
+
+                elif line.startswith("Min raw handbrake: "):
+                    min_raw_handbrake = float(line[19:])
+                    wx.CallAfter(self.minHandbrake.SetValue, min_raw_handbrake)
+
+                elif line.startswith("Max raw handbrake: "):
+                    max_raw_handbrake = float(line[19:])
+                    wx.CallAfter(self.maxHandbrake.SetValue, max_raw_handbrake)
+
+                elif line.startswith("Curve factor: "):
+                    curve_factor = float(line[14:])
+                    wx.CallAfter(self.curveFactor.SetValue, curve_factor)
+
+                # Here, you should also add the new data point to your plot and refresh it
 
 if __name__ == "__main__":
     app = wx.App(False)
