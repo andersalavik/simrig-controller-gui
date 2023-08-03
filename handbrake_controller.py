@@ -20,8 +20,8 @@ class HandbrakeController(wx.Frame):
         self.curveTypeChoices = ['LINEAR', 'EXPONENTIAL', 'LOGARITHMIC']
         self.curveType = wx.Choice(self, choices=self.curveTypeChoices)
 
-        self.minHandbrake = wx.Slider(self, value=0, minValue=0, maxValue=900000, style=wx.SL_HORIZONTAL)
-        self.maxHandbrake = wx.Slider(self, value=900000, minValue=0, maxValue=900000, style=wx.SL_HORIZONTAL)
+        self.minHandbrake = wx.Slider(self, value=-5200, minValue=-5000, maxValue=900000, style=wx.SL_HORIZONTAL)
+        self.maxHandbrake = wx.Slider(self, value=50000, minValue=-5000, maxValue=900000, style=wx.SL_HORIZONTAL)
         self.curveFactor = wx.Slider(self, value=2, minValue=0, maxValue=10, style=wx.SL_HORIZONTAL)
 
         self.saveButton = wx.Button(self, label="Save Settings")
