@@ -1,5 +1,5 @@
 import wx
-from wx.lib.plot import PolyLine, PlotCanvas, PlotGraphics
+from wx.lib.plot import PolyLine, PlotCanvas, PlotGraphics, PolyMarker
 import serial
 from serial.tools import list_ports
 import threading
@@ -155,6 +155,9 @@ class HandbrakeController(wx.Frame):
         minHandbrake = self.minHandbrake.GetValue()
         maxHandbrake = self.maxHandbrake.GetValue()
         curveFactor = self.curveFactor.GetValue()
+        rawHandbrakeValue = self.rawHandbrakeValue.GetValue()
+        processedHandbrakeValue = self.processedHandbrakeValue.GetValue()
+        
 
         x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
         if curveType == 'LINEAR':
@@ -166,7 +169,8 @@ class HandbrakeController(wx.Frame):
 
         # Create new plot
         line = PolyLine(list(zip(x, y)), colour='red', width=1)
-        gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
+        point = PolyMarker([(rawHandbrakeValue, processedHandbrakeValue)], colour='blue', marker='dot', size=1) # Add point for current handbrake value
+        gc = PlotGraphics([line,point], 'Handbrake Values', 'Raw Value', 'Processed Value')
         # Update plot on the GUI
         wx.CallAfter(self.plotCanvas.Draw, gc)
 
