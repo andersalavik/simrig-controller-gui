@@ -4,6 +4,7 @@ import serial
 from serial.tools import list_ports
 import threading
 import numpy as np
+import time
 
 
 
@@ -20,20 +21,23 @@ class HandbrakeController(wx.Frame):
         self.portSelection = wx.ComboBox(self)
         self.updatePortList()
 
+        self.autoSetMode = False
+
         self.curveTypeChoices = ['LINEAR', 'EXPONENTIAL', 'LOGARITHMIC']
         self.curveType = wx.Choice(self, choices=self.curveTypeChoices)
 
         # Create the slider and the text
-        self.minHandbrake = wx.Slider(self, value=-5200, minValue=-10000, maxValue=900000, style=wx.SL_HORIZONTAL)
+        self.minHandbrake = wx.Slider(self, value=-5200, minValue=-10000, maxValue=3000000, style=wx.SL_HORIZONTAL)
         self.minHandbrakeValueText = wx.StaticText(self, label=str(self.minHandbrake.GetValue()))
 
         
-        self.maxHandbrake = wx.Slider(self, value=50000, minValue=-10000, maxValue=900000, style=wx.SL_HORIZONTAL)
+        self.maxHandbrake = wx.Slider(self, value=50000, minValue=-10000, maxValue=3000000, style=wx.SL_HORIZONTAL)
         self.maxHandbrakeValueText = wx.StaticText(self, label=str(self.maxHandbrake.GetValue()))
-        
-        self.curveFactor = wx.Slider(self, value=2, minValue=0, maxValue=10, style=wx.SL_HORIZONTAL)
-        self.curveFactorValueText = wx.StaticText(self, label=str(self.curveFactor.GetValue()))
-        
+                
+        self.curveFactor = wx.Slider(self, value=20, minValue=0, maxValue=100, style=wx.SL_HORIZONTAL)
+        self.curveFactorValueText = wx.StaticText(self, label=str(self.curveFactor.GetValue() / 10.0))
+
+
         self.saveButton = wx.Button(self, label="Save Settings")
         self.setupModeToggle = wx.CheckBox(self, label="Toggle Setup Mode")
 
@@ -49,6 +53,8 @@ class HandbrakeController(wx.Frame):
         hbox0.Add(self.portSelection)
         self.connectButton = wx.Button(self, label="Connect")
         hbox0.Add(self.connectButton)
+        self.configButton = wx.Button(self, label="Config")
+        hbox0.Add(self.configButton)
 
         vbox.Add(hbox0, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
@@ -83,6 +89,13 @@ class HandbrakeController(wx.Frame):
         vbox.Add(self.rawHandbrakeValue, flag=wx.EXPAND|wx.ALL, border=10)
         vbox.Add(self.processedHandbrakeValue, flag=wx.EXPAND|wx.ALL, border=10)
 
+        
+        self.autoSetButton = wx.Button(self, label="Auto Set")
+        vbox.Add(self.autoSetButton, flag=wx.EXPAND|wx.ALL, border=10)
+
+        # Bind an event handler to the button's click event
+        self.autoSetButton.Bind(wx.EVT_BUTTON, self.onAutoSetButton)
+
         self.SetSizer(vbox)
 
         # Event bindings
@@ -93,6 +106,7 @@ class HandbrakeController(wx.Frame):
         self.curveFactor.Bind(wx.EVT_SLIDER, self.onCurveFactorChange)
         self.saveButton.Bind(wx.EVT_BUTTON, self.onSaveButton)
         self.setupModeToggle.Bind(wx.EVT_CHECKBOX, self.onSetupModeToggle)
+        self.configButton.Bind(wx.EVT_BUTTON, self.onConfigButton)
 
         # Start update thread
         self.updateThread = threading.Thread(target=self.updateHandbrakeValues)
@@ -112,15 +126,22 @@ class HandbrakeController(wx.Frame):
             try:
                 port = self.portSelection.GetValue()
                 self.ser.port = port
+                
                 self.ser.open()
                 self.readSettings()
                 self.connectButton.SetLabel("Disconnect")
             except:
                 wx.MessageBox('Failed to open port.', 'Error', wx.OK | wx.ICON_ERROR)
 
+    def onConfigButton(self, event):
+        self.readSettings()
+
     def onCurveTypeChange(self, event):
-        curveType = self.curveTypeChoices.index(self.curveType.GetStringSelection())
-        self.ser.write(bytes('c' + str(curveType), 'utf-8'))
+        curveTypeMapping = {'LINEAR': 0, 'EXPONENTIAL': 1, 'LOGARITHMIC': 2}
+        curveType = self.curveType.GetStringSelection()
+        curveTypeNumber = curveTypeMapping.get(curveType, 0)  # Default to 'LINEAR' if curveType is not found
+        #print(curveTypeNumber)
+        self.ser.write(bytes('c' + str(curveTypeNumber), 'utf-8'))
         self.plotCurve()  # Update curve
 
     def onMinHandbrakeChange(self, event):
@@ -132,12 +153,14 @@ class HandbrakeController(wx.Frame):
     def onMaxHandbrakeChange(self, event):
         maxHandbrake = self.maxHandbrake.GetValue()
         self.maxHandbrakeValueText.SetLabel(str(maxHandbrake))
-        self.ser.write(bytes('M' + str(maxHandbrake), 'utf-8'))
+        #print(maxHandbrake)
+        self.ser.write(bytes('t' + str(maxHandbrake), 'utf-8'))
         self.plotCurve()  # Update curve
 
     def onCurveFactorChange(self, event):
-        curveFactor = self.curveFactor.GetValue()
-        self.curveFactorValueText.SetLabel(str(curveFactor))
+        curveFactor = self.curveFactor.GetValue() 
+        self.curveFactorValueText.SetLabel(str(curveFactor / 10))
+        print(curveFactor)
         self.ser.write(bytes('f' + str(curveFactor), 'utf-8'))
         self.plotCurve()  # Update curve
 
@@ -150,11 +173,44 @@ class HandbrakeController(wx.Frame):
     def readSettings(self):
         self.ser.write(bytes('r', 'utf-8'))
         
+
+    def onAutoSetButton(self, event):
+        # Toggle "auto set" mode
+        self.autoSetMode = not self.autoSetMode
+
+        if self.autoSetMode:
+            self.autoSetButton.SetBackgroundColour('red')
+            self.autoSetButton.SetForegroundColour('white')
+
+            # Reset current values on min and max to 0
+            self.minHandbrake.SetValue(0)
+            self.maxHandbrake.SetValue(0)
+            self.minHandbrakeValueText.SetLabel(str(0))
+            self.maxHandbrakeValueText.SetLabel(str(0))
+        else:
+            # Restore original button color
+            self.autoSetButton.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
+            self.autoSetButton.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNTEXT))
+
+
+            minHandbrake = self.minHandbrake.GetValue()
+
+            self.ser.write(bytes('m' + str(minHandbrake), 'utf-8'))
+
+            maxHandbrake = self.maxHandbrake.GetValue()
+
+            self.ser.write(bytes('t' + str(maxHandbrake), 'utf-8'))
+
+
+
+        self.autoSetButton.Refresh()  # Refresh button to apply color changes
+
+
     def plotCurve(self):
         curveType = self.curveType.GetStringSelection()
         minHandbrake = self.minHandbrake.GetValue()
         maxHandbrake = self.maxHandbrake.GetValue()
-        curveFactor = self.curveFactor.GetValue()
+        curveFactor = self.curveFactor.GetValue() / 10
         rawHandbrakeValue = self.data_raw[-1][1] if self.data_raw else None
         processedHandbrakeValue = self.data_processed[-1][1] if self.data_processed else None
 
@@ -167,19 +223,19 @@ class HandbrakeController(wx.Frame):
             processedHandbrakeValue = ((processedHandbrakeValue - 0) / (1023 - 0)) * (output_max - output_min) + output_min
 
         if rawHandbrakeValue is not None and processedHandbrakeValue is not None:
-            print(rawHandbrakeValue, processedHandbrakeValue)
+            #print(rawHandbrakeValue, processedHandbrakeValue)
             point = PolyMarker([(rawHandbrakeValue, processedHandbrakeValue)], colour='blue', marker='circle', size=2)
         else:
             point = None
 
-        print(point)
-        x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
+        #print(point)
+        x = np.linspace(minHandbrake, maxHandbrake, 100)  + 0.001  # Generate x values
 
         # Compute curves
         if curveType == 'LINEAR':
-            y = maxHandbrake * x + curveFactor
+            y = maxHandbrake * x + curveFactor 
         elif curveType == 'EXPONENTIAL':
-            y = maxHandbrake * np.power(x, curveFactor) + curveFactor
+            y = np.where(x > 0, maxHandbrake * np.power(x, curveFactor) + curveFactor, 0)
         elif curveType == 'LOGARITHMIC':
             # Check to avoid log of 0
             y = np.where(x > 0, maxHandbrake * np.log(x) / np.log(curveFactor) + curveFactor, 0)
@@ -206,6 +262,19 @@ class HandbrakeController(wx.Frame):
         while True:
             if self.ser.is_open:  # Ensure the serial port is open before reading
                 line = self.ser.readline().decode('utf-8').strip()
+
+                rawHandbrakeValue = self.data_raw[-1][1] if self.data_raw else None
+                if rawHandbrakeValue is not None:
+                    if self.autoSetMode:
+                        # Update minimum and maximum values
+                        if rawHandbrakeValue < self.minHandbrake.GetValue():
+                            wx.CallAfter(self.minHandbrake.SetValue, rawHandbrakeValue)
+                            self.minHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
+                        if rawHandbrakeValue > self.maxHandbrake.GetValue():
+                            wx.CallAfter(self.maxHandbrake.SetValue, rawHandbrakeValue)
+                            self.maxHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
+
+                print(line)
                 if line.startswith("Raw Handbrake Value: "):
                     raw, processed = line.split("   Processed Handbrake Value: ")
                     raw = float(raw[21:])
@@ -228,6 +297,38 @@ class HandbrakeController(wx.Frame):
                     
 
                     counter += 1  # Increment counter
+
+
+                ''' Curve type: EXPONENTIAL
+                    Min raw handbrake: 10000.00
+                    Max raw handbrake: 2095588.00
+                    Curve factor: 2.00
+                '''                
+
+                if line.startswith("Curve type: "):
+                    curve_type = line.split(":")[1].strip()
+                    selection = self.curveTypeChoices.index(curve_type)
+                    wx.CallAfter(self.curveType.SetSelection, selection) 
+
+                if line.startswith("Min raw handbrake: "):
+                    min_handbrake = float(line.split(":")[1])
+                    self.minHandbrakeValueText.SetLabel(str(min_handbrake))
+                    wx.CallAfter(self.minHandbrake.SetValue, min_handbrake)
+
+                if line.startswith("Max raw handbrake: "):
+                    max_handbrake = float(line.split(":")[1])
+                    self.maxHandbrakeValueText.SetLabel(str(max_handbrake))
+                    wx.CallAfter(self.maxHandbrake.SetValue, max_handbrake)
+
+                if line.startswith("Curve factor: "):
+                    curve_factor = float(line.split(":")[1])
+                    
+                    
+
+                    self.curveFactorValueText.SetLabel(str(curve_factor / 10 ))
+                    wx.CallAfter(self.curveFactor.SetValue, curve_factor  )
+
+
 
 
 
