@@ -3,6 +3,9 @@ from wx.lib.plot import PolyLine, PlotCanvas, PlotGraphics
 import serial
 from serial.tools import list_ports
 import threading
+import numpy as np
+
+
 
 class HandbrakeController(wx.Frame):
     def __init__(self):
@@ -118,21 +121,25 @@ class HandbrakeController(wx.Frame):
     def onCurveTypeChange(self, event):
         curveType = self.curveTypeChoices.index(self.curveType.GetStringSelection())
         self.ser.write(bytes('c' + str(curveType), 'utf-8'))
+        self.plotCurve()  # Update curve
 
     def onMinHandbrakeChange(self, event):
         minHandbrake = self.minHandbrake.GetValue()
         self.minHandbrakeValueText.SetLabel(str(minHandbrake))
         self.ser.write(bytes('m' + str(minHandbrake), 'utf-8'))
+        self.plotCurve()  # Update curve
 
     def onMaxHandbrakeChange(self, event):
         maxHandbrake = self.maxHandbrake.GetValue()
         self.maxHandbrakeValueText.SetLabel(str(maxHandbrake))
         self.ser.write(bytes('M' + str(maxHandbrake), 'utf-8'))
+        self.plotCurve()  # Update curve
 
     def onCurveFactorChange(self, event):
         curveFactor = self.curveFactor.GetValue()
         self.curveFactorValueText.SetLabel(str(curveFactor))
         self.ser.write(bytes('f' + str(curveFactor), 'utf-8'))
+        self.plotCurve()  # Update curve
 
     def onSaveButton(self, event):
         self.ser.write(bytes('s', 'utf-8'))
@@ -142,9 +149,31 @@ class HandbrakeController(wx.Frame):
         
     def readSettings(self):
         self.ser.write(bytes('r', 'utf-8'))
+        
+    def plotCurve(self):
+    curveType = self.curveType.GetStringSelection()
+    minHandbrake = self.minHandbrake.GetValue()
+    maxHandbrake = self.maxHandbrake.GetValue()
+    curveFactor = self.curveFactor.GetValue()
+
+    x = np.linspace(minHandbrake, maxHandbrake, 100)  # Generate x values
+    if curveType == 'LINEAR':
+        y = x * curveFactor
+    elif curveType == 'EXPONENTIAL':
+        y = np.exp(x * curveFactor)
+    elif curveType == 'LOGARITHMIC':
+        y = np.log(x * curveFactor)
+
+    # Create new plot
+    line = PolyLine(list(zip(x, y)), colour='red', width=1)
+    gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
+    # Update plot on the GUI
+    wx.CallAfter(self.plotCanvas.Draw, gc)
 
     def updateHandbrakeValues(self):
-        self.data = []  # Initialize data list
+        self.data_raw = []  # Initialize data list for raw values
+        self.data_processed = []  # Initialize data list for processed values
+        counter = 0  # Simple counter to represent time
         while True:
             if self.ser.is_open:  # Ensure the serial port is open before reading
                 line = self.ser.readline().decode('utf-8').strip()
@@ -157,16 +186,21 @@ class HandbrakeController(wx.Frame):
                     wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
 
                     # Add new data point to list
-                    self.data.append((raw, processed))
+                    self.data_raw.append((counter, raw))
+                    self.data_processed.append((counter, processed))
                     # Remove oldest data point if list is too long
-                    if len(self.data) > 100:
-                        self.data.pop(0)
+                    if len(self.data_raw) > 100:
+                        self.data_raw.pop(0)
+                        self.data_processed.pop(0)
 
                     # Create new plot
-                    line = PolyLine(self.data, colour='red', width=1)
-                    gc = PlotGraphics([line], 'Handbrake Values', 'Raw Value', 'Processed Value')
+                    line_raw = PolyLine(self.data_raw, colour='red', width=1)
+                    line_processed = PolyLine(self.data_processed, colour='blue', width=1)
+                    gc = PlotGraphics([line_raw, line_processed], 'Handbrake Values', 'Time', 'Value')
                     # Update plot on the GUI
                     wx.CallAfter(self.plotCanvas.Draw, gc)
+
+                    counter += 1  # Increment counter
 
 
 if __name__ == "__main__":
