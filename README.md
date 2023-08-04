@@ -4,6 +4,10 @@ This project provides a graphical user interface (GUI) for controlling an Arduin
 
 This controls the handbrake using the [simrig-controller](https://github.com/andersalavik/simrig-controller)
 
+## Credits
+
+Yes i own a lot of credits to ChatGPT and CoPilot for helping me with this project.
+
 ## Features
 
 - Selection of curve type (LINEAR, EXPONENTIAL, LOGARITHMIC)
