@@ -8,116 +8,160 @@ import time
 
 class HandbrakeController(wx.Frame):
     def __init__(self):
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Handbrake Controller", size=(800,600))
+        super().__init__(None, wx.ID_ANY, "Handbrake Controller", size=(800,600))
         self.running = True
 
-        # Serial communication
-        self.ser = serial.Serial()
-        self.ser.baudrate = 9600
-        self.ser.timeout = 1
+        # Serial communication setup
+        self.ser = serial.Serial(baudrate=9600, timeout=1)
 
         # GUI elements
-        self.portSelection = wx.ComboBox(self)
-        self.updatePortList()
-
-        self.autoSetMode = False
-
-        self.curveTypeChoices = ['LINEAR', 'EXPONENTIAL', 'LOGARITHMIC']
-        self.curveType = wx.Choice(self, choices=self.curveTypeChoices)
-
-        # Create the slider and the text
-        self.minHandbrake = wx.Slider(self, value=-5200, minValue=-10000, maxValue=3000000, style=wx.SL_HORIZONTAL)
-        self.minHandbrakeValueInput = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
-
-        self.maxHandbrake = wx.Slider(self, value=50000, minValue=-10000, maxValue=3000000, style=wx.SL_HORIZONTAL)
-        self.maxHandbrakeValueInput = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
-
-        self.curveFactor = wx.Slider(self, value=20, minValue=0, maxValue=100, style=wx.SL_HORIZONTAL)
-        self.curveFactorValueInput = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
-
-        self.saveButton = wx.Button(self, label="Save Settings")
-        self.setupModeToggle = wx.CheckBox(self, label="Toggle Setup Mode")
-        self.setupModeToggle.Hide()
-
-        self.plotCanvas = PlotCanvas(self)
-        self.rawHandbrakeValue = wx.StaticText(self, label="Raw Handbrake Value: ")
-        self.processedHandbrakeValue = wx.StaticText(self, label="Processed Handbrake Value: ")
-
-        # Layout
-        vbox = wx.BoxSizer(wx.VERTICAL)
-
-        hbox0 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox0.Add(wx.StaticText(self, label="Port: "), flag=wx.RIGHT, border=8)
-        hbox0.Add(self.portSelection)
-        self.connectButton = wx.Button(self, label="Connect")
-        hbox0.Add(self.connectButton)
-        self.configButton = wx.Button(self, label="Config")
-        hbox0.Add(self.configButton)
-        self.configButton.Hide()
-
-        vbox.Add(hbox0, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
-
-        hbox1 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox1.Add(wx.StaticText(self, label="Curve Type: "), flag=wx.RIGHT, border=8)
-        hbox1.Add(self.curveType)
-        vbox.Add(hbox1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
-
-        hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox2.Add(self.minHandbrake, proportion=1)
-        hbox2.Add(self.minHandbrakeValueInput)
-        vbox.Add(hbox2, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
-
-        hbox3 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox3.Add(self.maxHandbrake, proportion=1)
-        hbox3.Add(self.maxHandbrakeValueInput)
-        vbox.Add(hbox3, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
-
-        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox4.Add(self.curveFactor, proportion=1)
-        hbox4.Add(self.curveFactorValueInput)
-        vbox.Add(hbox4, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
-
-        vbox.Add(self.saveButton, flag=wx.EXPAND|wx.ALL, border=10)
-        vbox.Add(self.setupModeToggle, flag=wx.EXPAND|wx.ALL, border=10)
-
-        vbox.Add(self.plotCanvas, proportion=1, flag=wx.EXPAND)
-        vbox.Add(self.rawHandbrakeValue, flag=wx.EXPAND|wx.ALL, border=10)
-        vbox.Add(self.processedHandbrakeValue, flag=wx.EXPAND|wx.ALL, border=10)
-
-        self.autoSetButton = wx.Button(self, label="Auto Set")
-        vbox.Add(self.autoSetButton, flag=wx.EXPAND|wx.ALL, border=10)
-
-        # Bind an event handler to the button's click event
-        self.autoSetButton.Bind(wx.EVT_BUTTON, self.onAutoSetButton)
-
-        self.SetSizer(vbox)
+        self.initialize_gui_elements()
 
         # Event bindings
-        self.connectButton.Bind(wx.EVT_BUTTON, self.onConnectButton)
-        self.curveType.Bind(wx.EVT_CHOICE, self.onCurveTypeChange)
-        self.minHandbrake.Bind(wx.EVT_SLIDER, self.onMinHandbrakeChange)
-        self.maxHandbrake.Bind(wx.EVT_SLIDER, self.onMaxHandbrakeChange)
-        self.curveFactor.Bind(wx.EVT_SLIDER, self.onCurveFactorChange)
-        self.saveButton.Bind(wx.EVT_BUTTON, self.onSaveButton)
-        self.setupModeToggle.Bind(wx.EVT_CHECKBOX, self.onSetupModeToggle)
-        self.configButton.Bind(wx.EVT_BUTTON, self.onConfigButton)
-        self.minHandbrakeValueInput.Bind(wx.EVT_TEXT_ENTER, self.onMinHandbrakeValueInput)
-        self.maxHandbrakeValueInput.Bind(wx.EVT_TEXT_ENTER, self.onMaxHandbrakeValueInput)
-        self.curveFactorValueInput.Bind(wx.EVT_TEXT_ENTER, self.onCurveFactorValueInput)
+        self.bind_events()
 
-
-
-        # Start update thread
+        # Start thread to update handbrake values
         self.updateThread = threading.Thread(target=self.updateHandbrakeValues)
         self.updateThread.start()
         
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-    def updatePortList(self):
-        self.portSelection.Clear()
+    def initialize_gui_elements(self):
+        # Initialize GUI elements and layout
+        self.portSelection = self.create_and_append_ports()
+        self.autoSetMode = False
+        self.connectButton = wx.Button(self, label="Connect")  
+        self.curveTypeChoices = ['LINEAR', 'EXPONENTIAL', 'LOGARITHMIC']
+        self.curveType = wx.Choice(self, choices=self.curveTypeChoices)
+        self.initialize_sliders_and_texts()
+        self.saveButton = wx.Button(self, label="Save Settings")
+        self.setupModeToggle = wx.CheckBox(self, label="Toggle Setup Mode")
+        self.setupModeToggle.Hide()
+        self.plotCanvas = PlotCanvas(self)
+        self.rawHandbrakeValue = wx.StaticText(self, label="Raw Handbrake Value: ")
+        self.processedHandbrakeValue = wx.StaticText(self, label="Processed Handbrake Value: ")
+        self.initialize_layout()
+
+
+    def initialize_sliders_and_texts(self):
+        # Initialize sliders and corresponding text fields
+        self.minHandbrake, self.minHandbrakeValueInput = self.create_slider_and_text(-5200, -10000, 3000000)
+        self.maxHandbrake, self.maxHandbrakeValueInput = self.create_slider_and_text(50000, -10000, 3000000)
+        self.curveFactor, self.curveFactorValueInput = self.create_slider_and_text(20, 0, 100)
+
+    def create_and_append_ports(self):
+        # Create port selection combo box and append available ports
+        portSelection = wx.ComboBox(self)
         ports = list_ports.comports()
         for port in ports:
-            self.portSelection.Append(port.device)
+            portSelection.Append(port.device)
+        return portSelection
+
+    def create_slider_and_text(self, value, minValue, maxValue):
+        # Create slider and corresponding text field
+        slider = wx.Slider(self, value=value, minValue=minValue, maxValue=maxValue, style=wx.SL_HORIZONTAL)
+        text = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
+        return slider, text
+
+    def initialize_layout(self):
+        # Initialize layout for GUI
+        vbox = wx.BoxSizer(wx.VERTICAL)
+
+        # Put portSelection and connectButton in the same hbox
+        hbox_connect = wx.BoxSizer(wx.HORIZONTAL)
+        hbox_connect.Add(self.portSelection, proportion=1, flag=wx.EXPAND)
+        hbox_connect.Add(self.connectButton, proportion=0)
+        vbox.Add(hbox_connect, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
+
+        # Other hbox elements
+        hbox_list = [self.create_hbox(element) for element in [self.curveType,
+                                                            self.minHandbrake, self.maxHandbrake, self.curveFactor,
+                                                            self.saveButton, self.setupModeToggle,
+                                                            self.rawHandbrakeValue, self.processedHandbrakeValue]]
+
+        # Create a grid sizer with 1 row and 1 column for the PlotCanvas
+        grid_sizer = wx.GridSizer(1, 1, 5, 5)
+        grid_sizer.Add(self.plotCanvas, 1, wx.EXPAND)
+
+        # Add the grid sizer to the vbox
+        vbox.Add(grid_sizer, 1, wx.EXPAND | wx.ALL, 5)
+
+        for hbox in hbox_list:
+            vbox.Add(hbox, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
+
+        self.autoSetButton = wx.Button(self, label="Auto Set")
+        vbox.Add(self.autoSetButton, flag=wx.EXPAND|wx.ALL, border=10)
+
+        self.SetSizer(vbox)
+
+
+    def create_hbox(self, element):
+        # Create horizontal box for layout
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        hbox.Add(element, proportion=1)
+        if isinstance(element, wx.Slider):
+            hbox.Add(self.get_corresponding_text(element))
+        return hbox
+
+    def get_corresponding_text(self, slider):
+        # Get corresponding text field for a given slider
+        if slider == self.minHandbrake:
+            return self.minHandbrakeValueInput
+        elif slider == self.maxHandbrake:
+            return self.maxHandbrakeValueInput
+        elif slider == self.curveFactor:
+            return self.curveFactorValueInput
+
+    def bind_events(self):
+        # Bind events to GUI elements
+        self.connectButton.Bind(wx.EVT_BUTTON, self.onConnectButton)
+        self.curveType.Bind(wx.EVT_CHOICE, self.onCurveTypeChange)
+        self.minHandbrake.Bind(wx.EVT_SLIDER, self.onSliderChange)
+        self.maxHandbrake.Bind(wx.EVT_SLIDER, self.onSliderChange)
+        self.curveFactor.Bind(wx.EVT_SLIDER, self.onSliderChange)
+        self.saveButton.Bind(wx.EVT_BUTTON, self.onSaveButton)
+        self.setupModeToggle.Bind(wx.EVT_CHECKBOX, self.onSetupModeToggle)
+        #self.configButton.Bind(wx.EVT_BUTTON, self.onConfigButton)
+        self.minHandbrakeValueInput.Bind(wx.EVT_TEXT_ENTER, self.onTextEnter)
+        self.maxHandbrakeValueInput.Bind(wx.EVT_TEXT_ENTER, self.onTextEnter)
+        self.curveFactorValueInput.Bind(wx.EVT_TEXT_ENTER, self.onTextEnter)
+        self.autoSetButton.Bind(wx.EVT_BUTTON, self.onAutoSetButton)
+
+    def onSliderChange(self, event):
+        # Event handler for slider changes
+        slider = event.GetEventObject()
+        value = slider.GetValue()
+        text = self.get_corresponding_text(slider)
+        text.SetValue(str(value))
+        self.ser.write(bytes(f'{self.get_slider_prefix(slider)}{value}', 'utf-8'))
+        self.plotCurve()  # Update curve
+
+    def get_slider_prefix(self, slider):
+        # Get corresponding prefix for a given slider
+        if slider == self.minHandbrake:
+            return 'm'
+        elif slider == self.maxHandbrake:
+            return 't'
+        elif slider == self.curveFactor:
+            return 'f'
+
+    def onTextEnter(self, event):
+        # Event handler for text enter events
+        text = event.GetEventObject()
+        value = int(event.GetString())
+        slider = self.get_corresponding_slider(text)
+        slider.SetValue(value)
+        text.SetValue(str(value))
+        self.ser.write(bytes(f'{self.get_slider_prefix(slider)}{value}', 'utf-8'))
+
+    def get_corresponding_slider(self, text):
+        # Get corresponding slider for a given text field
+        if text == self.minHandbrakeValueInput:
+            return self.minHandbrake
+        elif text == self.maxHandbrakeValueInput:
+            return self.maxHandbrake
+        elif text == self.curveFactorValueInput:
+            return self.curveFactor
 
     def onConnectButton(self, event):
         if self.ser.is_open:
