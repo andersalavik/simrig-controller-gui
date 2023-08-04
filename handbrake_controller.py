@@ -6,8 +6,6 @@ import threading
 import numpy as np
 import time
 
-
-
 class HandbrakeController(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, wx.ID_ANY, "Handbrake Controller", size=(800,600))
@@ -29,15 +27,13 @@ class HandbrakeController(wx.Frame):
 
         # Create the slider and the text
         self.minHandbrake = wx.Slider(self, value=-5200, minValue=-10000, maxValue=3000000, style=wx.SL_HORIZONTAL)
-        self.minHandbrakeValueText = wx.StaticText(self, label=str(self.minHandbrake.GetValue()))
+        self.minHandbrakeValueInput = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
 
-        
         self.maxHandbrake = wx.Slider(self, value=50000, minValue=-10000, maxValue=3000000, style=wx.SL_HORIZONTAL)
-        self.maxHandbrakeValueText = wx.StaticText(self, label=str(self.maxHandbrake.GetValue()))
-                
-        self.curveFactor = wx.Slider(self, value=20, minValue=0, maxValue=100, style=wx.SL_HORIZONTAL)
-        self.curveFactorValueText = wx.StaticText(self, label=str(self.curveFactor.GetValue() / 10.0))
+        self.maxHandbrakeValueInput = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
 
+        self.curveFactor = wx.Slider(self, value=20, minValue=0, maxValue=100, style=wx.SL_HORIZONTAL)
+        self.curveFactorValueInput = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
 
         self.saveButton = wx.Button(self, label="Save Settings")
         self.setupModeToggle = wx.CheckBox(self, label="Toggle Setup Mode")
@@ -67,22 +63,18 @@ class HandbrakeController(wx.Frame):
         vbox.Add(hbox1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox2.Add(wx.StaticText(self, label="Min Handbrake: "), flag=wx.RIGHT, border=8)
         hbox2.Add(self.minHandbrake, proportion=1)
-        hbox2.Add(self.minHandbrakeValueText)
-        
+        hbox2.Add(self.minHandbrakeValueInput)
         vbox.Add(hbox2, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         hbox3 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox3.Add(wx.StaticText(self, label="Max Handbrake: "), flag=wx.RIGHT, border=8)
         hbox3.Add(self.maxHandbrake, proportion=1)
-        hbox3.Add(self.maxHandbrakeValueText)
+        hbox3.Add(self.maxHandbrakeValueInput)
         vbox.Add(hbox3, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         hbox4 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox4.Add(wx.StaticText(self, label="Curve Factor: "), flag=wx.RIGHT, border=8)
         hbox4.Add(self.curveFactor, proportion=1)
-        hbox4.Add(self.curveFactorValueText)
+        hbox4.Add(self.curveFactorValueInput)
         vbox.Add(hbox4, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
 
         vbox.Add(self.saveButton, flag=wx.EXPAND|wx.ALL, border=10)
@@ -92,7 +84,6 @@ class HandbrakeController(wx.Frame):
         vbox.Add(self.rawHandbrakeValue, flag=wx.EXPAND|wx.ALL, border=10)
         vbox.Add(self.processedHandbrakeValue, flag=wx.EXPAND|wx.ALL, border=10)
 
-        
         self.autoSetButton = wx.Button(self, label="Auto Set")
         vbox.Add(self.autoSetButton, flag=wx.EXPAND|wx.ALL, border=10)
 
@@ -110,6 +101,11 @@ class HandbrakeController(wx.Frame):
         self.saveButton.Bind(wx.EVT_BUTTON, self.onSaveButton)
         self.setupModeToggle.Bind(wx.EVT_CHECKBOX, self.onSetupModeToggle)
         self.configButton.Bind(wx.EVT_BUTTON, self.onConfigButton)
+        self.minHandbrakeValueInput.Bind(wx.EVT_TEXT_ENTER, self.onMinHandbrakeValueInput)
+        self.maxHandbrakeValueInput.Bind(wx.EVT_TEXT_ENTER, self.onMaxHandbrakeValueInput)
+        self.curveFactorValueInput.Bind(wx.EVT_TEXT_ENTER, self.onCurveFactorValueInput)
+
+
 
         # Start update thread
         self.updateThread = threading.Thread(target=self.updateHandbrakeValues)
@@ -164,20 +160,20 @@ class HandbrakeController(wx.Frame):
 
     def onMinHandbrakeChange(self, event):
         minHandbrake = self.minHandbrake.GetValue()
-        self.minHandbrakeValueText.SetLabel(str(minHandbrake))
+        self.minHandbrakeValueInput.SetValue(str(minHandbrake))
         self.ser.write(bytes('m' + str(minHandbrake), 'utf-8'))
         self.plotCurve()  # Update curve
 
     def onMaxHandbrakeChange(self, event):
         maxHandbrake = self.maxHandbrake.GetValue()
-        self.maxHandbrakeValueText.SetLabel(str(maxHandbrake))
+        self.maxHandbrakeValueInput.SetValue(str(maxHandbrake))
         #print(maxHandbrake)
         self.ser.write(bytes('t' + str(maxHandbrake), 'utf-8'))
         self.plotCurve()  # Update curve
 
     def onCurveFactorChange(self, event):
         curveFactor = self.curveFactor.GetValue() 
-        self.curveFactorValueText.SetLabel(str(curveFactor / 10))
+        self.curveFactorValueInput.SetValue(str(curveFactor / 10))
         print(curveFactor)
         self.ser.write(bytes('f' + str(curveFactor), 'utf-8'))
         self.plotCurve()  # Update curve
@@ -206,8 +202,8 @@ class HandbrakeController(wx.Frame):
             # Reset current values on min and max to 0
             self.minHandbrake.SetValue(0)
             self.maxHandbrake.SetValue(0)
-            self.minHandbrakeValueText.SetLabel(str(0))
-            self.maxHandbrakeValueText.SetLabel(str(0))
+            self.minHandbrakeValueInput.SetValue(str(0))
+            self.maxHandbrakeValueInput.SetValue(str(0))
         else:
             # Restore original button color
             self.autoSetButton.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
@@ -225,6 +221,26 @@ class HandbrakeController(wx.Frame):
 
 
         self.autoSetButton.Refresh()  # Refresh button to apply color changes
+
+
+    def onMinHandbrakeValueInput(self, event):
+        value = int(event.GetString())
+        self.minHandbrake.SetValue(value)
+        self.minHandbrakeValueInput.SetValue(str(value))
+        self.ser.write(bytes('m' + str(value), 'utf-8'))
+
+    def onMaxHandbrakeValueInput(self, event):
+        value = int(event.GetString())
+        self.maxHandbrake.SetValue(value)
+        self.maxHandbrakeValueInput.SetValue(str(value))
+        self.ser.write(bytes('t' + str(value), 'utf-8'))
+
+    def onCurveFactorValueInput(self, event):
+        value = int(event.GetString())
+        self.curveFactor.SetValue(value)
+        self.curveFactorValueInput.SetValue(str(value / 10.0))
+        self.ser.write(bytes('f' + str(value), 'utf-8'))
+
 
 
     def plotCurve(self):
@@ -260,6 +276,9 @@ class HandbrakeController(wx.Frame):
         elif curveType == 'LOGARITHMIC':
             # Check to avoid log of 0
             y = np.where(x > 0, maxHandbrake * np.log(x) / np.log(curveFactor) + curveFactor, 0)
+        else:
+            y = x  # Default case: y = x
+
 
         # Scale output values to desired range (output_min - output_max)
         y = ((y - np.min(y)) / (np.max(y) - np.min(y))) * (output_max - output_min) + output_min
@@ -279,8 +298,6 @@ class HandbrakeController(wx.Frame):
 
     def updateHandbrakeValues(self):
         while self.running:
-
-
             self.data_raw = []  # Initialize data list for raw values
             self.data_processed = []  # Initialize data list for processed values
             counter = 0  # Simple counter to represent time
@@ -292,12 +309,12 @@ class HandbrakeController(wx.Frame):
                     if rawHandbrakeValue is not None:
                         if self.autoSetMode:
                             # Update minimum and maximum values
-                            if rawHandbrakeValue < self.minHandbrake.GetValue():
+                            if rawHandbrakeValue < self.minHandbrake.GetValue() and wx.GetApp() is not None:
                                 wx.CallAfter(self.minHandbrake.SetValue, rawHandbrakeValue)
-                                self.minHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
-                            if rawHandbrakeValue > self.maxHandbrake.GetValue():
+                                wx.CallAfter(self.minHandbrakeValueInput.SetValue, str(rawHandbrakeValue))
+                            if rawHandbrakeValue > self.maxHandbrake.GetValue() and wx.GetApp() is not None:
                                 wx.CallAfter(self.maxHandbrake.SetValue, rawHandbrakeValue)
-                                self.maxHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
+                                wx.CallAfter(self.maxHandbrakeValueInput.SetValue, str(rawHandbrakeValue))
 
                     print(line)
                     if line.startswith("Raw Handbrake Value: "):
@@ -305,8 +322,9 @@ class HandbrakeController(wx.Frame):
                         raw = float(raw[21:])
                         processed = float(processed)
 
-                        wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
-                        wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
+                        if wx.GetApp() is not None:
+                            wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
+                            wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
 
                         # Add new data point to list
                         self.data_raw.append((counter, raw))
@@ -320,7 +338,6 @@ class HandbrakeController(wx.Frame):
                         # Plot curve
                         self.plotCurve()
                         
-
                         counter += 1  # Increment counter
 
 
@@ -333,29 +350,27 @@ class HandbrakeController(wx.Frame):
                     if line.startswith("Curve type: "):
                         curve_type = line.split(":")[1].strip()
                         selection = self.curveTypeChoices.index(curve_type)
-                        wx.CallAfter(self.curveType.SetSelection, selection) 
+                        if wx.GetApp() is not None:
+                            wx.CallAfter(self.curveType.SetSelection, selection) 
 
                     if line.startswith("Min raw handbrake: "):
                         min_handbrake = float(line.split(":")[1])
-                        self.minHandbrakeValueText.SetLabel(str(min_handbrake))
-                        wx.CallAfter(self.minHandbrake.SetValue, min_handbrake)
+                        wx.CallAfter(self.minHandbrakeValueInput.SetValue, str(min_handbrake))
+                        if wx.GetApp() is not None:
+                            wx.CallAfter(self.minHandbrake.SetValue, min_handbrake)
 
                     if line.startswith("Max raw handbrake: "):
                         max_handbrake = float(line.split(":")[1])
-                        self.maxHandbrakeValueText.SetLabel(str(max_handbrake))
-                        wx.CallAfter(self.maxHandbrake.SetValue, max_handbrake)
+                        wx.CallAfter(self.maxHandbrakeValueInput.SetValue, str(max_handbrake))
+                        if wx.GetApp() is not None:
+                            wx.CallAfter(self.maxHandbrake.SetValue, max_handbrake)
 
                     if line.startswith("Curve factor: "):
                         curve_factor = float(line.split(":")[1])
                         
-                        
-
-                        self.curveFactorValueText.SetLabel(str(curve_factor / 10 ))
-                        wx.CallAfter(self.curveFactor.SetValue, curve_factor  )
-
-
-
-
+                        wx.CallAfter(self.curveFactorValueInput.SetValue, str(curve_factor / 10 ))
+                        if wx.GetApp() is not None:
+                            wx.CallAfter(self.curveFactor.SetValue, curve_factor)
 
 if __name__ == "__main__":
     app = wx.App(False)
