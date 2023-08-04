@@ -11,6 +11,7 @@ import time
 class HandbrakeController(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, wx.ID_ANY, "Handbrake Controller", size=(800,600))
+        self.running = True
 
         # Serial communication
         self.ser = serial.Serial()
@@ -113,6 +114,8 @@ class HandbrakeController(wx.Frame):
         # Start update thread
         self.updateThread = threading.Thread(target=self.updateHandbrakeValues)
         self.updateThread.start()
+        
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
 
     def updatePortList(self):
         self.portSelection.Clear()
@@ -142,6 +145,14 @@ class HandbrakeController(wx.Frame):
 
     def onConfigButton(self, event):
         self.readSettings()
+
+
+    def stop(self):
+        self.running = False
+        
+    def OnClose(self, event):
+        self.stop()
+        self.Destroy()
 
     def onCurveTypeChange(self, event):
         curveTypeMapping = {'LINEAR': 0, 'EXPONENTIAL': 1, 'LOGARITHMIC': 2}
@@ -267,77 +278,80 @@ class HandbrakeController(wx.Frame):
 
 
     def updateHandbrakeValues(self):
-        self.data_raw = []  # Initialize data list for raw values
-        self.data_processed = []  # Initialize data list for processed values
-        counter = 0  # Simple counter to represent time
-        while True:
-            if self.ser.is_open:  # Ensure the serial port is open before reading
-                line = self.ser.readline().decode('utf-8').strip()
+        while self.running:
 
-                rawHandbrakeValue = self.data_raw[-1][1] if self.data_raw else None
-                if rawHandbrakeValue is not None:
-                    if self.autoSetMode:
-                        # Update minimum and maximum values
-                        if rawHandbrakeValue < self.minHandbrake.GetValue():
-                            wx.CallAfter(self.minHandbrake.SetValue, rawHandbrakeValue)
-                            self.minHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
-                        if rawHandbrakeValue > self.maxHandbrake.GetValue():
-                            wx.CallAfter(self.maxHandbrake.SetValue, rawHandbrakeValue)
-                            self.maxHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
 
-                print(line)
-                if line.startswith("Raw Handbrake Value: "):
-                    raw, processed = line.split("   Processed Handbrake Value: ")
-                    raw = float(raw[21:])
-                    processed = float(processed)
+            self.data_raw = []  # Initialize data list for raw values
+            self.data_processed = []  # Initialize data list for processed values
+            counter = 0  # Simple counter to represent time
+            while True:
+                if self.ser.is_open:  # Ensure the serial port is open before reading
+                    line = self.ser.readline().decode('utf-8').strip()
 
-                    wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
-                    wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
+                    rawHandbrakeValue = self.data_raw[-1][1] if self.data_raw else None
+                    if rawHandbrakeValue is not None:
+                        if self.autoSetMode:
+                            # Update minimum and maximum values
+                            if rawHandbrakeValue < self.minHandbrake.GetValue():
+                                wx.CallAfter(self.minHandbrake.SetValue, rawHandbrakeValue)
+                                self.minHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
+                            if rawHandbrakeValue > self.maxHandbrake.GetValue():
+                                wx.CallAfter(self.maxHandbrake.SetValue, rawHandbrakeValue)
+                                self.maxHandbrakeValueText.SetLabel(str(rawHandbrakeValue))
 
-                    # Add new data point to list
-                    self.data_raw.append((counter, raw))
-                    self.data_processed.append((counter, processed))
-                    # Remove oldest data point if list is too long
-                    if len(self.data_raw) > 100:
-                        self.data_raw.pop(0)
-                        self.data_processed.pop(0)
+                    print(line)
+                    if line.startswith("Raw Handbrake Value: "):
+                        raw, processed = line.split("   Processed Handbrake Value: ")
+                        raw = float(raw[21:])
+                        processed = float(processed)
 
-                
-                    # Plot curve
-                    self.plotCurve()
+                        wx.CallAfter(self.rawHandbrakeValue.SetLabel, "Raw Handbrake Value: " + str(raw))
+                        wx.CallAfter(self.processedHandbrakeValue.SetLabel, "Processed Handbrake Value: " + str(processed))
+
+                        # Add new data point to list
+                        self.data_raw.append((counter, raw))
+                        self.data_processed.append((counter, processed))
+                        # Remove oldest data point if list is too long
+                        if len(self.data_raw) > 100:
+                            self.data_raw.pop(0)
+                            self.data_processed.pop(0)
+
                     
+                        # Plot curve
+                        self.plotCurve()
+                        
 
-                    counter += 1  # Increment counter
+                        counter += 1  # Increment counter
 
 
-                ''' Curve type: EXPONENTIAL
-                    Min raw handbrake: 10000.00
-                    Max raw handbrake: 2095588.00
-                    Curve factor: 2.00
-                '''                
+                    ''' Curve type: EXPONENTIAL
+                        Min raw handbrake: 10000.00
+                        Max raw handbrake: 2095588.00
+                        Curve factor: 2.00
+                    '''                
 
-                if line.startswith("Curve type: "):
-                    curve_type = line.split(":")[1].strip()
-                    selection = self.curveTypeChoices.index(curve_type)
-                    wx.CallAfter(self.curveType.SetSelection, selection) 
+                    if line.startswith("Curve type: "):
+                        curve_type = line.split(":")[1].strip()
+                        selection = self.curveTypeChoices.index(curve_type)
+                        wx.CallAfter(self.curveType.SetSelection, selection) 
 
-                if line.startswith("Min raw handbrake: "):
-                    min_handbrake = float(line.split(":")[1])
-                    self.minHandbrakeValueText.SetLabel(str(min_handbrake))
-                    wx.CallAfter(self.minHandbrake.SetValue, min_handbrake)
+                    if line.startswith("Min raw handbrake: "):
+                        min_handbrake = float(line.split(":")[1])
+                        self.minHandbrakeValueText.SetLabel(str(min_handbrake))
+                        wx.CallAfter(self.minHandbrake.SetValue, min_handbrake)
 
-                if line.startswith("Max raw handbrake: "):
-                    max_handbrake = float(line.split(":")[1])
-                    self.maxHandbrakeValueText.SetLabel(str(max_handbrake))
-                    wx.CallAfter(self.maxHandbrake.SetValue, max_handbrake)
+                    if line.startswith("Max raw handbrake: "):
+                        max_handbrake = float(line.split(":")[1])
+                        self.maxHandbrakeValueText.SetLabel(str(max_handbrake))
+                        wx.CallAfter(self.maxHandbrake.SetValue, max_handbrake)
 
-                if line.startswith("Curve factor: "):
-                    curve_factor = float(line.split(":")[1])
-                    
-                    
+                    if line.startswith("Curve factor: "):
+                        curve_factor = float(line.split(":")[1])
+                        
+                        
 
-                    self.curveFactorValueText.SetLabel(str(curve_factor / 10 ))
-                    wx.CallAfter(self.curveFactor.SetValue, curve_factor  )
+                        self.curveFactorValueText.SetLabel(str(curve_factor / 10 ))
+                        wx.CallAfter(self.curveFactor.SetValue, curve_factor  )
 
 
 
